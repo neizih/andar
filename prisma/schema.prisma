@@ -19,3 +19,37 @@ model Person {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model inventory{
+  id   Int  @id @default(autoincrement())
+  name String 
+  quantity Int
+  createdAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  media       Media[]
+  
+  @@map("reports")
+}
+
+model Media {
+  id       String    @id @default(cuid())
+  filename String
+  originalName String
+  mimeType String
+  size     Int
+  path     String
+  reportId String
+  report   Report    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@map("media")
+}

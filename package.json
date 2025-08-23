@@ -25,6 +25,8 @@
 		"vite": "^7.0.4"
 	},
 	"dependencies": {
-		"@prisma/client": "^6.13.0"
+		"@prisma/client": "^6.13.0",
+		"@tailwindcss/vite": "^4.1.12",
+		"tailwindcss": "^4.1.12"
 	}
 }

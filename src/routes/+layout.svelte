@@ -1,15 +1,16 @@
-<script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
-
-	let { children } = $props();
+<!-- src/routes/+layout.svelte -->
+<script>
+  import Sidebar from '$lib/components/Sidebar.svelte';
+  import '../app.css'; // Your global styles
 </script>
 
-<svelte:head>
-	<link rel="icon" href={favicon} />
-</svelte:head>
-
-<nav>
-	<a href="/people">Go to poeple </a>
-</nav>
-
-{@render children?.()}
+<div class="flex min-h-screen bg-gray-50">
+  <Sidebar />
+  
+  <!-- Main content area -->
+  <div class="flex-1 lg:ml-64">
+    <main class="p-4 lg:p-8 pt-16 lg:pt-8">
+      <slot />
+    </main>
+  </div>
+</div>
