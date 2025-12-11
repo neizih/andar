@@ -16,6 +16,8 @@ if (!existsSync(uploadsDir)) {
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET() {
+  console.log('Available Prisma methods:', Object.keys(prisma));
+console.log('Prisma client properties:', Object.getOwnPropertyNames(prisma));
   try {
     const reports = await prisma.report.findMany({
       include: {

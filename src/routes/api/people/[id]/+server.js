@@ -21,20 +21,33 @@ export async function GET({ params }) {
 // PUT - Update a person
 export async function PUT({ params, request }) {
 	try {
-		const { firstName, lastName, email, phone } = await request.json();
+		const requestData = await request.json();
+		console.log('Received update data:', requestData);
+		
+		// Extract all possible fields
+		const { firstName, lastName, email, phone, isActive, inactiveDate } = requestData;
+		
+		// Build the update data object - only include fields that are provided
+		const updateData = {};
+		
+		if (firstName !== undefined) updateData.firstName = firstName;
+		if (lastName !== undefined) updateData.lastName = lastName;
+		if (email !== undefined) updateData.email = email;
+		if (phone !== undefined) updateData.phone = phone;
+		if (isActive !== undefined) updateData.isActive = isActive;
+		if (inactiveDate !== undefined) updateData.inactiveDate = inactiveDate ? new Date(inactiveDate) : null;
+		
+		console.log('Updating person with data:', updateData);
 		
 		const person = await prisma.person.update({
 			where: { id: parseInt(params.id) },
-			data: {
-				firstName,
-				lastName,
-				email,
-				phone
-			}
+			data: updateData
 		});
 		
+		console.log('Updated person result:', person);
 		return json(person);
 	} catch (error) {
+		console.error('Error updating person:', error);
 		if (error.code === 'P2025') {
 			return json({ error: 'Person not found' }, { status: 404 });
 		}

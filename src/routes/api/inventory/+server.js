@@ -18,7 +18,7 @@ export async function GET() {
 // POST /api/inventory - Create new inventory item
 export async function POST({ request }) {
 	try {
-		const { name, quantity } = await request.json();
+		const { name, quantity, lowStockThreshold } = await request.json();
 		
 		// Validation
 		if (!name || !name.trim()) {
@@ -30,11 +30,17 @@ export async function POST({ request }) {
 			return json({ error: 'Quantity must be a valid positive number' }, { status: 400 });
 		}
 		
+		const thresholdInt = parseInt(lowStockThreshold ?? 5);
+		if (isNaN(thresholdInt) || thresholdInt < 0) {
+			return json({ error: 'Low stock threshold must be a valid positive number' }, { status: 400 });
+		}
+		
 		// Create inventory item
 		const inventory = await prisma.inventory.create({
 			data: {
 				name: name.trim(),
-				quantity: quantityInt
+				quantity: quantityInt,
+				lowStockThreshold: thresholdInt
 			}
 		});
 		

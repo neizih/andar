@@ -1,31 +1,14 @@
 // routes/api/reports/[id]/+server.js
 import { json } from '@sveltejs/kit';
 import { PrismaClient } from '@prisma/client';
-import { unlink, writeFile } from 'fs/promises';
+import { writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
-/** @type {import('./$types').RequestHandler} */
-export async function GET({ params }) {
-  try {
-    const report = await prisma.report.findUnique({
-      where: { id: params.id },
-      include: { media: true }
-    });
-    
-    if (!report) {
-      return json({ error: 'Report not found' }, { status: 404 });
-    }
-    
-    return json(report);
-  } catch (error) {
-    console.error('Error fetching report:', error);
-    return json({ error: 'Failed to fetch report' }, { status: 500 });
-  }
-}
+const uploadsDir = 'static/uploads';
 
 /** @type {import('./$types').RequestHandler} */
 export async function PUT({ params, request }) {
@@ -35,9 +18,13 @@ export async function PUT({ params, request }) {
     const description = formData.get('description');
     const dateString = formData.get('date');
     
-    // Validate required fields
     if (!title) {
       return json({ error: 'Title is required' }, { status: 400 });
+    }
+    
+    // Ensure uploads directory exists
+    if (!existsSync(uploadsDir)) {
+      await mkdir(uploadsDir, { recursive: true });
     }
     
     // Update the report
@@ -46,13 +33,12 @@ export async function PUT({ params, request }) {
       data: {
         title,
         description: description || '',
-        date: dateString ? new Date(dateString) : undefined
+        date: dateString ? new Date(dateString) : new Date()
       }
     });
     
     // Handle new file uploads
     const files = formData.getAll('files');
-    const uploadsDir = 'static/uploads';
     
     for (const file of files) {
       if (file instanceof File && file.size > 0) {
@@ -79,13 +65,13 @@ export async function PUT({ params, request }) {
       }
     }
     
-    // Return updated report with media
-    const updatedReport = await prisma.report.findUnique({
+    // Return the updated report with media
+    const reportWithMedia = await prisma.report.findUnique({
       where: { id: params.id },
       include: { media: true }
     });
     
-    return json(updatedReport);
+    return json(reportWithMedia);
   } catch (error) {
     console.error('Error updating report:', error);
     return json({ error: 'Failed to update report' }, { status: 500 });
@@ -95,7 +81,7 @@ export async function PUT({ params, request }) {
 /** @type {import('./$types').RequestHandler} */
 export async function DELETE({ params }) {
   try {
-    // Get report with media to clean up files
+    // Get report with media
     const report = await prisma.report.findUnique({
       where: { id: params.id },
       include: { media: true }
@@ -105,7 +91,7 @@ export async function DELETE({ params }) {
       return json({ error: 'Report not found' }, { status: 404 });
     }
     
-    // Delete media files from disk
+    // Delete all media files from disk
     for (const media of report.media) {
       const filePath = `static${media.path}`;
       if (existsSync(filePath)) {
@@ -117,7 +103,7 @@ export async function DELETE({ params }) {
       }
     }
     
-    // Delete report (media records will be deleted due to cascade)
+    // Delete report (media will be deleted via cascade)
     await prisma.report.delete({
       where: { id: params.id }
     });
