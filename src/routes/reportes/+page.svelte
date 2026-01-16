@@ -2,78 +2,95 @@
 <script>
   import { onMount } from 'svelte';
   import MediaUpload from '$lib/components/MediaUpload.svelte';
-  
+
   let reports = [];
   let filteredReports = [];
   let showForm = false;
   let showDetails = false;
+  let showImageModal = false;
   let editingReport = null;
   let viewingReport = null;
-  
+  let selectedImage = null;
+
   // Form data
   let form = {
     title: '',
     description: '',
-    date: getLocalISODate(new Date()), // Usar fecha local corregida
+    clientCode: '',
+    addedBy: '',
+    date: getLocalISODate(new Date()),
     files: []
   };
-  
+
   // Pagination and filtering
   let filterDateFrom = '';
   let filterDateTo = '';
+  let filterClientCode = '';
+  let filterAddedBy = '';
   let currentPage = 1;
   let itemsPerPage = 10;
   let paginatedReports = [];
   let totalPages = 1;
-  
+
   let submitting = false;
-  
-  // Función para obtener la fecha en formato ISO sin desplazamiento de zona horaria
+
   function getLocalISODate(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
-  
-  // Función para convertir fecha ISO a objeto Date sin problemas de zona horaria
+
   function parseISODate(isoString) {
     const [year, month, day] = isoString.split('T')[0].split('-').map(Number);
     return new Date(year, month - 1, day);
   }
-  
+
   onMount(() => {
     loadReports();
   });
 
-  // Reactive statements for filtering and pagination - CORREGIDO
+  // Reactive statements for filtering and pagination
   $: {
     let filtered = reports;
-    
+
     // Apply date filters
     if (filterDateFrom || filterDateTo) {
       filtered = filtered.filter(report => {
-        // Extraer solo la parte de la fecha (YYYY-MM-DD)
         const reportDateStr = report.date.split('T')[0];
         const reportDate = parseISODate(reportDateStr);
-        
+
         let matchesFrom = true;
         let matchesTo = true;
-        
+
         if (filterDateFrom) {
           const fromDate = parseISODate(filterDateFrom);
           matchesFrom = reportDate >= fromDate;
         }
-        
+
         if (filterDateTo) {
           const toDate = parseISODate(filterDateTo);
           matchesTo = reportDate <= toDate;
         }
-        
+
         return matchesFrom && matchesTo;
       });
     }
-    
+
+    // Apply client code filter
+    if (filterClientCode) {
+      filtered = filtered.filter(report =>
+        report.clientCode && report.clientCode.toLowerCase().includes(filterClientCode.toLowerCase())
+      );
+    }
+
+    // Apply added by filter
+    if (filterAddedBy) {
+      filtered = filtered.filter(report =>
+        report.addedBy && report.addedBy.toLowerCase().includes(filterAddedBy.toLowerCase())
+      );
+    }
+
     filteredReports = filtered;
   }
 
@@ -85,7 +102,7 @@
     const startIndex = (currentPage - 1) * itemsPerPage;
     paginatedReports = filteredReports.slice(startIndex, startIndex + itemsPerPage);
   }
-  
+
   async function loadReports() {
     try {
       const response = await fetch('/api/reports');
@@ -98,34 +115,35 @@
       console.error('Error loading reports:', error);
     }
   }
-  
+
   async function handleSubmit() {
     if (!form.title.trim()) {
       alert('El título es requerido');
       return;
     }
-    
+
     submitting = true;
-    
+
     try {
       const formData = new FormData();
       formData.append('title', form.title);
       formData.append('description', form.description);
+      formData.append('clientCode', form.clientCode);
+      formData.append('addedBy', form.addedBy);
       formData.append('date', form.date);
-      
-      // Add files
+
       form.files.forEach(file => {
         formData.append('files', file);
       });
-      
+
       const url = editingReport ? `/api/reports/${editingReport.id}` : '/api/reports';
       const method = editingReport ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         body: formData
       });
-      
+
       if (response.ok) {
         await loadReports();
         resetForm();
@@ -140,17 +158,17 @@
       submitting = false;
     }
   }
-  
+
   async function deleteReport(id) {
     if (!confirm('¿Está seguro de que desea eliminar este reporte? Esta acción no se puede deshacer.')) {
       return;
     }
-    
+
     try {
       const response = await fetch(`/api/reports/${id}`, {
         method: 'DELETE'
       });
-      
+
       if (response.ok) {
         await loadReports();
       } else {
@@ -161,17 +179,17 @@
       alert('Error al eliminar el reporte');
     }
   }
-  
+
   async function deleteMedia(mediaId) {
     if (!confirm('¿Está seguro de que desea eliminar este archivo multimedia?')) {
       return;
     }
-    
+
     try {
       const response = await fetch(`/api/media/${mediaId}`, {
         method: 'DELETE'
       });
-      
+
       if (response.ok) {
         await loadReports();
         if (viewingReport) {
@@ -191,11 +209,12 @@
 
   function editReport(report) {
     editingReport = report;
-    // Usar la fecha local corregida al editar
     const reportDate = parseISODate(report.date.split('T')[0]);
     form = {
       title: report.title,
       description: report.description || '',
+      clientCode: report.clientCode || '',
+      addedBy: report.addedBy || '',
       date: getLocalISODate(reportDate),
       files: []
     };
@@ -207,11 +226,25 @@
     showDetails = true;
   }
 
+  function openImageModal(media) {
+    if (media.mimeType.startsWith('image/')) {
+      selectedImage = media;
+      showImageModal = true;
+    }
+  }
+
+  function closeImageModal() {
+    showImageModal = false;
+    selectedImage = null;
+  }
+
   function resetForm() {
     form = {
       title: '',
       description: '',
-      date: getLocalISODate(new Date()), // Usar fecha local corregida
+      clientCode: '',
+      addedBy: '',
+      date: getLocalISODate(new Date()),
       files: []
     };
     editingReport = null;
@@ -226,6 +259,8 @@
   function clearFilters() {
     filterDateFrom = '';
     filterDateTo = '';
+    filterClientCode = '';
+    filterAddedBy = '';
     currentPage = 1;
   }
 
@@ -238,7 +273,7 @@
   function handleFilesChanged(event) {
     form.files = event.detail;
   }
-  
+
   function formatDate(dateString) {
     const date = parseISODate(dateString);
     return date.toLocaleDateString('es-ES', {
@@ -247,7 +282,7 @@
       year: 'numeric'
     });
   }
-  
+
   function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -255,7 +290,7 @@
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
-  
+
   function getMediaIcon(mimeType) {
     if (mimeType.startsWith('image/')) return '🖼️';
     if (mimeType.startsWith('video/')) return '🎥';
@@ -276,9 +311,17 @@
     }
   }
 
+  function handleImageModalClick(event) {
+    if (event.target === event.currentTarget) {
+      closeImageModal();
+    }
+  }
+
   function handleKeydown(event) {
     if (event.key === 'Escape') {
-      if (showForm) {
+      if (showImageModal) {
+        closeImageModal();
+      } else if (showForm) {
         resetForm();
       } else if (showDetails) {
         closeDetails();
@@ -292,27 +335,29 @@
   <title>Reportes Diarios</title>
 </svelte:head>
 
-<div class="max-w-6xl mx-auto p-6">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-semibold text-gray-900">Reportes Diarios</h1>
-    <button 
+<div class="max-w-6xl mx-auto p-4 sm:p-6">
+  <!-- Header Section -->
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold text-gray-900 mb-3">Reportes Diarios</h1>
+    <button
       on:click={() => showForm = true}
-      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+      class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
     >
       + Nuevo Reporte
     </button>
   </div>
 
   {#if reports.length > 0}
+    <!-- Filters Section -->
     <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4">
       <div class="flex flex-col gap-4">
         <div class="flex items-center gap-2">
-          <span class="text-sm font-medium text-gray-700">Filtrar por fecha:</span>
+          <span class="text-sm font-medium text-gray-700">Filtros:</span>
         </div>
 
-        <div class="flex flex-col sm:flex-row gap-4">
-          <div class="flex-1">
-            <label class="block text-xs text-gray-600 mb-1">Desde</label>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="w-full">
+            <label class="block text-xs text-gray-600 mb-1">Fecha Desde</label>
             <input
               type="date"
               bind:value={filterDateFrom}
@@ -320,9 +365,9 @@
               class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          
-          <div class="flex-1">
-            <label class="block text-xs text-gray-600 mb-1">Hasta</label>
+
+          <div class="w-full">
+            <label class="block text-xs text-gray-600 mb-1">Fecha Hasta</label>
             <input
               type="date"
               bind:value={filterDateTo}
@@ -331,22 +376,44 @@
             />
           </div>
 
-          {#if filterDateFrom || filterDateTo}
-            <div class="flex items-end">
-              <button 
-                on:click={clearFilters}
-                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium transition-colors whitespace-nowrap"
-              >
-                Limpiar filtros
-              </button>
-            </div>
-          {/if}
+          <div class="w-full">
+            <label class="block text-xs text-gray-600 mb-1">Código Cliente</label>
+            <input
+              type="text"
+              placeholder="Ej: 0001"
+              bind:value={filterClientCode}
+              on:input={() => currentPage = 1}
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div class="w-full">
+            <label class="block text-xs text-gray-600 mb-1">Agregado Por</label>
+            <input
+              type="text"
+              placeholder="Nombre de persona"
+              bind:value={filterAddedBy}
+              on:input={() => currentPage = 1}
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </div>
 
-        <div class="flex justify-between items-center">
+        {#if filterDateFrom || filterDateTo || filterClientCode || filterAddedBy}
+          <div class="flex items-center">
+            <button
+              on:click={clearFilters}
+              class="w-full sm:w-auto px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium transition-colors"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        {/if}
+
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div class="flex items-center gap-2 text-sm text-gray-600">
             <span>Mostrar:</span>
-            <select 
+            <select
               bind:value={itemsPerPage}
               on:change={() => currentPage = 1}
               class="px-2 py-1 border border-gray-300 rounded text-sm"
@@ -370,13 +437,15 @@
       </div>
     </div>
 
+    <!-- Desktop Table -->
     <div class="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agregado Por</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Multimedia</th>
             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
           </tr>
@@ -388,8 +457,9 @@
                 <div class="max-w-xs truncate">{report.title}</div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(report.date)}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{report.clientCode || '—'}</td>
               <td class="px-6 py-4 text-sm text-gray-500">
-                <div class="max-w-xs truncate">{report.description || '—'}</div>
+                <div class="max-w-xs truncate">{report.addedBy || '—'}</div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {#if report.media && report.media.length > 0}
@@ -409,31 +479,44 @@
       </table>
     </div>
 
+    <!-- Mobile Cards -->
     <div class="md:hidden space-y-3">
       {#each paginatedReports as report (report.id)}
         <div class="bg-white border border-gray-200 rounded-lg p-4">
-          <div class="flex justify-between items-start mb-3">
-            <h3 class="font-medium text-gray-900 text-lg truncate pr-2">{report.title}</h3>
-            <div class="flex gap-1 flex-shrink-0">
-              <button on:click={() => viewReport(report)} class="text-green-600 hover:text-green-900 text-sm font-medium">Ver</button>
-              <button on:click={() => editReport(report)} class="text-blue-600 hover:text-blue-900 text-sm font-medium">Editar</button>
-              <button on:click={() => deleteReport(report.id)} class="text-red-600 hover:text-red-900 text-sm font-medium">Eliminar</button>
+          <div class="mb-3">
+            <h3 class="font-medium text-gray-900 text-base mb-2">{report.title}</h3>
+            <div class="flex flex-wrap gap-2">
+              <button on:click={() => viewReport(report)} class="px-3 py-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded text-sm font-medium">Ver</button>
+              <button on:click={() => editReport(report)} class="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-sm font-medium">Editar</button>
+              <button on:click={() => deleteReport(report.id)} class="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded text-sm font-medium">Eliminar</button>
             </div>
           </div>
-          <div class="space-y-2 text-sm">
-            <div class="flex items-start">
-              <span class="text-gray-500 w-16 flex-shrink-0">Fecha:</span>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex">
+              <span class="text-gray-500 w-28 flex-shrink-0">Fecha:</span>
               <span class="text-gray-900">{formatDate(report.date)}</span>
             </div>
+            {#if report.clientCode}
+              <div class="flex">
+                <span class="text-gray-500 w-28 flex-shrink-0">Código:</span>
+                <span class="text-gray-900">{report.clientCode}</span>
+              </div>
+            {/if}
+            {#if report.addedBy}
+              <div class="flex">
+                <span class="text-gray-500 w-28 flex-shrink-0">Agregado por:</span>
+                <span class="text-gray-900">{report.addedBy}</span>
+              </div>
+            {/if}
             {#if report.description}
-              <div class="flex items-start">
-                <span class="text-gray-500 w-16 flex-shrink-0">Desc:</span>
+              <div class="flex">
+                <span class="text-gray-500 w-28 flex-shrink-0">Desc:</span>
                 <span class="text-gray-900 line-clamp-2">{report.description}</span>
               </div>
             {/if}
             {#if report.media && report.media.length > 0}
-              <div class="flex items-start">
-                <span class="text-gray-500 w-16 flex-shrink-0">Media:</span>
+              <div class="flex">
+                <span class="text-gray-500 w-28 flex-shrink-0">Media:</span>
                 <span class="text-gray-900">{report.media.length} archivo{report.media.length !== 1 ? 's' : ''}</span>
               </div>
             {/if}
@@ -451,11 +534,11 @@
 
     {#if totalPages > 1}
       <div class="bg-white border border-gray-200 rounded-lg p-4 mt-4">
-        <div class="flex items-center justify-between">
-          <div class="text-sm text-gray-600">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="text-sm text-gray-600 text-center sm:text-left">
             Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredReports.length)} de {filteredReports.length}
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap justify-center">
             <button on:click={() => changePage(currentPage - 1)} disabled={currentPage === 1} class="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50">Anterior</button>
             {#each Array.from({length: Math.min(5, totalPages)}, (_, i) => {
               const start = Math.max(1, currentPage - 2);
@@ -471,7 +554,7 @@
   {:else}
     <div class="bg-white border border-gray-200 rounded-lg p-12 text-center">
       <p class="text-gray-500 mb-4">No se han creado reportes todavía.</p>
-      <button on:click={() => showForm = true} class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">Crear Primer Reporte</button>
+      <button on:click={() => showForm = true} class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">Crear Primer Reporte</button>
     </div>
   {/if}
 </div>
@@ -490,26 +573,36 @@
       <div class="p-6">
         <form on:submit|preventDefault={handleSubmit}>
           <div class="space-y-4 mb-6">
-            <div>
+            <div class="w-full">
               <label for="title" class="block text-sm font-medium text-gray-700 mb-1">Título *</label>
               <input id="title" type="text" placeholder="Ingrese el título del reporte" bind:value={form.title} required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
-            <div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="w-full">
+                <label for="clientCode" class="block text-sm font-medium text-gray-700 mb-1">Código Cliente</label>
+                <input id="clientCode" type="text" placeholder="Ej: 0001" bind:value={form.clientCode} class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+              </div>
+              <div class="w-full">
+                <label for="addedBy" class="block text-sm font-medium text-gray-700 mb-1">Agregado Por</label>
+                <input id="addedBy" type="text" placeholder="Nombre de la persona" bind:value={form.addedBy} class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+              </div>
+            </div>
+            <div class="w-full">
               <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
               <input id="date" type="date" bind:value={form.date} class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
-            <div>
+            <div class="w-full">
               <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
               <textarea id="description" placeholder="Ingrese la descripción del reporte" bind:value={form.description} rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical min-h-[100px]"></textarea>
             </div>
-            <div>
+            <div class="w-full">
               <label class="block text-sm font-medium text-gray-700 mb-1">Archivos Multimedia</label>
               <MediaUpload bind:files={form.files} on:filesChanged={handleFilesChanged} />
             </div>
           </div>
-          <div class="flex justify-end gap-3">
-            <button type="button" on:click={resetForm} class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">Cancelar</button>
-            <button type="submit" disabled={submitting || !form.title.trim()} class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <div class="flex flex-col-reverse sm:flex-row justify-end gap-3">
+            <button type="button" on:click={resetForm} class="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">Cancelar</button>
+            <button type="submit" disabled={submitting || !form.title.trim()} class="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {submitting ? 'Guardando...' : (editingReport ? 'Actualizar Reporte' : 'Crear Reporte')}
             </button>
           </div>
@@ -525,7 +618,15 @@
       <div class="flex items-center justify-between p-6 border-b border-gray-200">
         <div>
           <h2 class="text-xl font-semibold text-gray-900">{viewingReport.title}</h2>
-          <p class="text-sm text-gray-500 mt-1">{formatDate(viewingReport.date)}</p>
+          <div class="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
+            <span>{formatDate(viewingReport.date)}</span>
+            {#if viewingReport.clientCode}
+              <span>• Código: <strong>{viewingReport.clientCode}</strong></span>
+            {/if}
+            {#if viewingReport.addedBy}
+              <span>• Por: <strong>{viewingReport.addedBy}</strong></span>
+            {/if}
+          </div>
         </div>
         <button on:click={closeDetails} class="text-gray-400 hover:text-gray-600 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -547,7 +648,12 @@
               {#each viewingReport.media as media}
                 <div class="border border-gray-200 rounded-lg overflow-hidden">
                   {#if media.mimeType.startsWith('image/')}
-                    <img src={media.path} alt={media.originalName} class="w-full h-48 object-cover" />
+                    <button
+                      on:click={() => openImageModal(media)}
+                      class="w-full h-48 cursor-pointer hover:opacity-90 transition-opacity"
+                    >
+                      <img src={media.path} alt={media.originalName} class="w-full h-full object-cover" />
+                    </button>
                   {:else if media.mimeType.startsWith('video/')}
                     <video controls class="w-full h-48 object-cover bg-gray-100">
                       <source src={media.path} type={media.mimeType} />
@@ -579,8 +685,41 @@
         {/if}
       </div>
       <div class="flex justify-end gap-3 p-6 border-t border-gray-200">
-        <button on:click={() => { closeDetails(); editReport(viewingReport); }} class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors">Editar Reporte</button>
+        <button
+          on:click={() => {
+            const reportToEdit = viewingReport;
+            closeDetails();
+            setTimeout(() => editReport(reportToEdit), 100);
+          }}
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
+        >
+          Editar Reporte
+        </button>
         <button on:click={closeDetails} class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">Cerrar</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if showImageModal && selectedImage}
+  <div class="fixed inset-0 flex items-center justify-center p-4 z-[60] bg-black bg-opacity-80" on:click={handleImageModalClick}>
+    <div class="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center">
+      <button
+        on:click={closeImageModal}
+        class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-2"
+      >
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <img
+        src={selectedImage.path}
+        alt={selectedImage.originalName}
+        class="max-w-full max-h-full object-contain"
+        on:click|stopPropagation
+      />
+      <div class="absolute bottom-4 left-0 right-0 text-center">
+        <p class="text-white text-sm bg-black bg-opacity-50 inline-block px-4 py-2 rounded-lg">{selectedImage.originalName}</p>
       </div>
     </div>
   </div>

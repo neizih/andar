@@ -13,7 +13,7 @@
 		isActive: true,
 		inactiveDate: null
 	};
-	
+
 	// Pagination and filtering
 	let searchTerm = '';
 	let currentPage = 1;
@@ -28,7 +28,7 @@
 	// Reactive statement for filtering and sorting
 	$: {
 		if (searchTerm) {
-			filteredPeople = people.filter(person => 
+			filteredPeople = people.filter(person =>
 				`${person.firstName} ${person.lastName} ${person.email} ${person.phone || ''}`
 					.toLowerCase()
 					.includes(searchTerm.toLowerCase())
@@ -43,7 +43,7 @@
 			// First sort by active status (active first)
 			if (a.isActive && !b.isActive) return -1;
 			if (!a.isActive && b.isActive) return 1;
-			
+
 			// Then sort by creation date (newest first within each group)
 			return new Date(b.createdAt) - new Date(a.createdAt);
 		});
@@ -66,7 +66,7 @@
 	async function fetchPeople() {
 		try {
 			const response = await fetch('/api/people');
-			
+
 			if (response.ok) {
 				const data = await response.json();
 				people = data;
@@ -131,10 +131,10 @@
 
 	async function togglePersonStatus(person) {
 		const action = person.isActive ? 'desactivar' : 'reactivar';
-		const confirmMessage = person.isActive 
-			? '¿Estás seguro de que quieres desactivar este voluntario?' 
+		const confirmMessage = person.isActive
+			? '¿Estás seguro de que quieres desactivar este voluntario?'
 			: '¿Estás seguro de que quieres reactivar este voluntario?';
-		
+
 		if (confirm(confirmMessage)) {
 			try {
 				const updateData = {
@@ -168,7 +168,7 @@
 
 	function editPerson(person) {
 		editingPerson = person;
-		form = { 
+		form = {
 			...person,
 			inactiveDate: person.inactiveDate ? person.inactiveDate.split('T')[0] : null
 		};
@@ -222,7 +222,7 @@
 	function downloadCSV() {
 		// Prepare CSV headers
 		const headers = ['Nombre', 'Apellido', 'Correo Electrónico', 'Teléfono', 'Estado', 'Fecha de Ingreso'];
-		
+
 		// Prepare CSV data
 		const csvData = people.map(person => {
 			return [
@@ -237,7 +237,7 @@
 
 		// Combine headers and data
 		const allRows = [headers, ...csvData];
-		
+
 		// Convert to CSV string
 		const csvContent = allRows.map(row => {
 			return row.map(field => {
@@ -252,15 +252,15 @@
 		const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
 		const link = document.createElement('a');
 		const url = URL.createObjectURL(blob);
-		
+
 		link.setAttribute('href', url);
 		link.setAttribute('download', `voluntarios_${new Date().toISOString().split('T')[0]}.csv`);
 		link.style.visibility = 'hidden';
-		
+
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
-		
+
 		// Clean up
 		URL.revokeObjectURL(url);
 
@@ -271,32 +271,34 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <div class="max-w-6xl mx-auto p-6">
-	<!-- Header -->
-	<div class="flex justify-between items-center mb-6">
-		<div>
-			<h1 class="text-2xl font-semibold text-gray-900">Registro de Voluntarios</h1>
-			<p class="text-sm text-gray-600 mt-1">
-				{activePeople.length} activos • {inactivePeople.length} inactivos
-			</p>
-		</div>
-		<div class="flex items-center gap-4">
-			<button 
-				on:click={downloadCSV}
-				disabled={people.length === 0}
-				class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
-				title={people.length === 0 ? 'No hay voluntarios para exportar' : 'Descargar todos los voluntarios en CSV'}
-			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-				</svg>
-				Exportar CSV
-			</button>
-			<button 
-				on:click={() => showForm = true}
-				class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-			>
-				+ Agregar Voluntario
-			</button>
+    <!-- Header -->
+	<div class="mb-6">
+		<div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+			<div>
+				<h1 class="text-2xl font-semibold text-gray-900">Registro de Voluntarios</h1>
+				<p class="text-sm text-gray-600 mt-1">
+					{activePeople.length} activos • {inactivePeople.length} inactivos
+				</p>
+			</div>
+			<div class="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4">
+				<button
+					on:click={downloadCSV}
+					disabled={people.length === 0}
+					class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
+					title={people.length === 0 ? 'No hay voluntarios para exportar' : 'Descargar todos los voluntarios en CSV'}
+				>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+					</svg>
+					Exportar CSV
+				</button>
+				<button
+					on:click={() => showForm = true}
+					class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+				>
+					+ Agregar Voluntario
+				</button>
+			</div>
 		</div>
 	</div>
 
@@ -313,7 +315,7 @@
 						class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-64"
 					/>
 					{#if searchTerm}
-						<button 
+						<button
 							on:click={() => { searchTerm = ''; currentPage = 1; }}
 							class="text-gray-500 hover:text-gray-700 text-sm"
 						>
@@ -325,7 +327,7 @@
 				<!-- Items per page -->
 				<div class="flex items-center gap-2 text-sm text-gray-600">
 					<span>Mostrar:</span>
-					<select 
+					<select
 						bind:value={itemsPerPage}
 						on:change={() => currentPage = 1}
 						class="px-2 py-1 border border-gray-300 rounded text-sm"
@@ -396,19 +398,19 @@
 								{formatDateSpanish(person.createdAt)}
 							</td>
 							<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-								<button 
+								<button
 									on:click={() => editPerson(person)}
 									class="text-blue-600 hover:text-blue-900 mr-3"
 								>
 									Editar
 								</button>
-								<button 
+								<button
 									on:click={() => togglePersonStatus(person)}
 									class="{person.isActive ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'} mr-3"
 								>
 									{person.isActive ? 'Desactivar' : 'Reactivar'}
 								</button>
-								<button 
+								<button
 									on:click={() => deletePerson(person.id)}
 									class="text-red-600 hover:text-red-900"
 								>
@@ -441,19 +443,19 @@
 							{/if}
 						</div>
 						<div class="flex flex-col gap-2">
-							<button 
+							<button
 								on:click={() => editPerson(person)}
 								class="text-blue-600 hover:text-blue-900 text-sm font-medium text-right"
 							>
 								Editar
 							</button>
-							<button 
+							<button
 								on:click={() => togglePersonStatus(person)}
 								class="{person.isActive ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'} text-sm font-medium text-right"
 							>
 								{person.isActive ? 'Desactivar' : 'Reactivar'}
 							</button>
-							<button 
+							<button
 								on:click={() => deletePerson(person.id)}
 								class="text-red-600 hover:text-red-900 text-sm font-medium text-right"
 							>
@@ -461,20 +463,20 @@
 							</button>
 						</div>
 					</div>
-					
+
 					<div class="space-y-2 text-sm">
 						<div class="flex items-start">
 							<span class="text-gray-500 w-20 flex-shrink-0">Correo:</span>
 							<span class="text-gray-900 break-all">{person.email}</span>
 						</div>
-						
+
 						{#if person.phone}
 							<div class="flex items-start">
 								<span class="text-gray-500 w-20 flex-shrink-0">Teléfono:</span>
 								<span class="text-gray-900">{person.phone}</span>
 							</div>
 						{/if}
-						
+
 						<div class="flex items-start">
 							<span class="text-gray-500 w-20 flex-shrink-0">Ingreso:</span>
 							<span class="text-gray-900">{formatDateSpanish(person.createdAt)}</span>
@@ -488,7 +490,7 @@
 		{#if paginatedPeople.length === 0 && filteredPeople.length === 0 && searchTerm}
 			<div class="bg-white border border-gray-200 rounded-lg p-12 text-center">
 				<p class="text-gray-500">No se encontraron voluntarios que coincidan con "{searchTerm}"</p>
-				<button 
+				<button
 					on:click={() => { searchTerm = ''; currentPage = 1; }}
 					class="mt-2 text-blue-600 hover:text-blue-800 text-sm"
 				>
@@ -502,13 +504,13 @@
 			<div class="bg-white border border-gray-200 rounded-lg p-4 mt-4">
 				<div class="flex items-center justify-between">
 					<div class="text-sm text-gray-600">
-						Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredPeople.length)} 
+						Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredPeople.length)}
 						de {filteredPeople.length}
 					</div>
 
 					<div class="flex items-center gap-2">
 						<!-- Previous button -->
-						<button 
+						<button
 							on:click={() => changePage(currentPage - 1)}
 							disabled={currentPage === 1}
 							class="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -521,7 +523,7 @@
 							const start = Math.max(1, currentPage - 2);
 							return start + i;
 						}).filter(p => p <= totalPages) as page}
-							<button 
+							<button
 								on:click={() => changePage(page)}
 								class="px-3 py-1 text-sm border border-gray-300 rounded {page === currentPage ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'}"
 							>
@@ -530,7 +532,7 @@
 						{/each}
 
 						<!-- Next button -->
-						<button 
+						<button
 							on:click={() => changePage(currentPage + 1)}
 							disabled={currentPage === totalPages}
 							class="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -545,7 +547,7 @@
 		<!-- Empty state -->
 		<div class="bg-white border border-gray-200 rounded-lg p-12 text-center">
 			<p class="text-gray-500 mb-4">No hay voluntarios registrados aún.</p>
-			<button 
+			<button
 				on:click={() => showForm = true}
 				class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
 			>
@@ -557,7 +559,7 @@
 
 <!-- Modal Overlay -->
 {#if showForm}
-	<div 
+	<div
 		class="fixed inset-0 flex items-center justify-center p-4 z-50"
 		style="background-color: rgba(0, 0, 0, 0.3);"
 		on:click={handleModalClick}
@@ -569,7 +571,7 @@
 				<h2 class="text-xl font-semibold text-gray-900">
 					{editingPerson ? 'Editar Voluntario' : 'Agregar Nuevo Voluntario'}
 				</h2>
-				<button 
+				<button
 					on:click={resetForm}
 					class="text-gray-400 hover:text-gray-600 transition-colors"
 				>
@@ -596,7 +598,7 @@
 								class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 							/>
 						</div>
-						
+
 						<div>
 							<label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">
 								Apellido *
@@ -610,7 +612,7 @@
 								class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 							/>
 						</div>
-						
+
 						<div>
 							<label for="email" class="block text-sm font-medium text-gray-700 mb-1">
 								Correo Electrónico *
@@ -624,7 +626,7 @@
 								class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 							/>
 						</div>
-						
+
 						<div>
 							<label for="phone" class="block text-sm font-medium text-gray-700 mb-1">
 								Teléfono
@@ -642,7 +644,7 @@
 					<!-- Status Section -->
 					<div class="border-t border-gray-200 pt-6 mb-6">
 						<h3 class="text-lg font-medium text-gray-900 mb-4">Estado</h3>
-						
+
 						<div class="space-y-4">
 							<div class="flex items-center">
 								<input
@@ -671,17 +673,17 @@
 							{/if}
 						</div>
 					</div>
-					
+
 					<!-- Modal Footer -->
 					<div class="flex justify-end gap-3">
-						<button 
-							type="button" 
+						<button
+							type="button"
 							on:click={resetForm}
 							class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
 						>
 							Cancelar
 						</button>
-						<button 
+						<button
 							type="submit"
 							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
 						>

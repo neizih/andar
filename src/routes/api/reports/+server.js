@@ -16,8 +16,6 @@ if (!existsSync(uploadsDir)) {
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET() {
-  console.log('Available Prisma methods:', Object.keys(prisma));
-console.log('Prisma client properties:', Object.getOwnPropertyNames(prisma));
   try {
     const reports = await prisma.report.findMany({
       include: {
@@ -27,7 +25,7 @@ console.log('Prisma client properties:', Object.getOwnPropertyNames(prisma));
         date: 'desc'
       }
     });
-    
+
     return json(reports);
   } catch (error) {
     console.error('Error fetching reports:', error);
@@ -41,37 +39,56 @@ export async function POST({ request }) {
     const formData = await request.formData();
     const title = formData.get('title');
     const description = formData.get('description');
+    const clientCode = formData.get('clientCode');  // NEW
+    const addedBy = formData.get('addedBy');        // NEW
     const dateString = formData.get('date');
-    
+
+    // DEBUG: Log what we're receiving
+    console.log('📝 Received form data:', {
+      title,
+      description,
+      clientCode,
+      addedBy,
+      dateString
+    });
+
     // Validate required fields
     if (!title) {
       return json({ error: 'Title is required' }, { status: 400 });
     }
-    
+
     // Create the report first
+    const reportData = {
+      title,
+      description: description || '',
+      clientCode: clientCode || null,  // NEW
+      addedBy: addedBy || null,        // NEW
+      date: dateString ? new Date(dateString) : new Date()
+    };
+
+    console.log('💾 Creating report with data:', reportData);
+
     const report = await prisma.report.create({
-      data: {
-        title,
-        description: description || '',
-        date: dateString ? new Date(dateString) : new Date()
-      }
+      data: reportData
     });
-    
+
+    console.log('✅ Report created:', report);
+
     // Handle file uploads
     const files = formData.getAll('files');
     const mediaRecords = [];
-    
+
     for (const file of files) {
       if (file instanceof File && file.size > 0) {
         // Generate unique filename
         const ext = path.extname(file.name);
         const filename = `${crypto.randomUUID()}${ext}`;
         const filePath = path.join(uploadsDir, filename);
-        
+
         // Save file to disk
         const buffer = Buffer.from(await file.arrayBuffer());
         await writeFile(filePath, buffer);
-        
+
         // Create media record
         const mediaRecord = await prisma.media.create({
           data: {
@@ -83,17 +100,17 @@ export async function POST({ request }) {
             reportId: report.id
           }
         });
-        
+
         mediaRecords.push(mediaRecord);
       }
     }
-    
+
     // Return the report with media
     const reportWithMedia = await prisma.report.findUnique({
       where: { id: report.id },
       include: { media: true }
     });
-    
+
     return json(reportWithMedia, { status: 201 });
   } catch (error) {
     console.error('Error creating report:', error);

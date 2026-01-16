@@ -1,27 +1,27 @@
 <script>
   import { onMount } from 'svelte';
-  
+
   let inventory = [];
   let filteredInventory = [];
   let showForm = false;
   let editingItem = null;
-  
+
   // Form data
   let form = {
     name: '',
     quantity: 0,
     lowStockThreshold: 5
   };
-  
+
   // Pagination and filtering
   let searchTerm = '';
   let currentPage = 1;
   let itemsPerPage = 10;
   let paginatedInventory = [];
   let totalPages = 1;
-  
+
   let submitting = false;
-  
+
   onMount(() => {
     fetchInventory();
   });
@@ -29,7 +29,7 @@
   // Reactive statements for filtering and pagination
   $: {
     if (searchTerm) {
-      filteredInventory = inventory.filter(item => 
+      filteredInventory = inventory.filter(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     } else {
@@ -45,7 +45,7 @@
     const startIndex = (currentPage - 1) * itemsPerPage;
     paginatedInventory = filteredInventory.slice(startIndex, startIndex + itemsPerPage);
   }
-  
+
   async function fetchInventory() {
     try {
       const response = await fetch('/api/inventory');
@@ -59,13 +59,13 @@
       console.error('Error fetching inventory:', error);
     }
   }
-  
+
   async function handleSubmit() {
     if (!form.name.trim()) {
       alert('Por favor ingrese un nombre');
       return;
     }
-    
+
     if (form.quantity < 0) {
       alert('La cantidad debe ser 0 o mayor');
       return;
@@ -75,13 +75,13 @@
       alert('El umbral de stock bajo debe ser 0 o mayor');
       return;
     }
-    
+
     submitting = true;
-    
+
     try {
       const url = editingItem ? `/api/inventory/${editingItem.id}` : '/api/inventory';
       const method = editingItem ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -93,7 +93,7 @@
           lowStockThreshold: Number(form.lowStockThreshold)
         })
       });
-      
+
       if (response.ok) {
         await fetchInventory();
         resetForm();
@@ -113,12 +113,12 @@
     if (!confirm('¿Está seguro de que desea eliminar este artículo?')) {
       return;
     }
-    
+
     try {
       const response = await fetch(`/api/inventory/${id}`, {
         method: 'DELETE'
       });
-      
+
       if (response.ok) {
         await fetchInventory();
       } else {
@@ -133,7 +133,7 @@
 
   function editItem(item) {
     editingItem = item;
-    form = { 
+    form = {
       name: item.name,
       quantity: Number(item.quantity),
       lowStockThreshold: Number(item.lowStockThreshold) || 5
@@ -206,7 +206,7 @@
   function downloadCSV() {
     // Prepare CSV headers
     const headers = ['Nombre del Artículo', 'Cantidad', 'Umbral Stock Bajo', 'Estado', 'Fecha de Ingreso'];
-    
+
     // Prepare CSV data
     const csvData = inventory.map(item => {
       return [
@@ -220,7 +220,7 @@
 
     // Combine headers and data
     const allRows = [headers, ...csvData];
-    
+
     // Convert to CSV string
     const csvContent = allRows.map(row => {
       return row.map(field => {
@@ -235,15 +235,15 @@
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    
+
     link.setAttribute('href', url);
     link.setAttribute('download', `inventario_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
-    
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     // Clean up
     URL.revokeObjectURL(url);
 
@@ -256,15 +256,15 @@
   <title>Gestor de Inventario</title>
 </svelte:head>
 
-<div class="max-w-6xl mx-auto p-6">
-  <!-- Header -->
-  <div class="flex justify-between items-center mb-6">
+<!-- Header -->
+<div class="mb-6">
+  <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
     <h1 class="text-2xl font-semibold text-gray-900">Gestor de Inventario</h1>
-    <div class="flex items-center gap-4">
-      <button 
+    <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4">
+      <button
         on:click={downloadCSV}
         disabled={inventory.length === 0}
-        class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+        class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
         title={inventory.length === 0 ? 'No hay artículos para exportar' : 'Descargar todos los artículos en CSV'}
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -272,7 +272,7 @@
         </svg>
         Exportar CSV
       </button>
-      <button 
+      <button
         on:click={() => showForm = true}
         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
       >
@@ -280,8 +280,9 @@
       </button>
     </div>
   </div>
-
-  {#if inventory.length > 0}
+</div>
+<div class="max-w-6xl mx-auto p-6">
+   {#if inventory.length > 0}
     <!-- Search and Controls -->
     <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -294,7 +295,7 @@
             class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-64"
           />
           {#if searchTerm}
-            <button 
+            <button
               on:click={() => { searchTerm = ''; currentPage = 1; }}
               class="text-gray-500 hover:text-gray-700 text-sm"
             >
@@ -306,7 +307,7 @@
         <!-- Items per page -->
         <div class="flex items-center gap-2 text-sm text-gray-600">
           <span>Mostrar:</span>
-          <select 
+          <select
             bind:value={itemsPerPage}
             on:change={() => currentPage = 1}
             class="px-2 py-1 border border-gray-300 rounded text-sm"
@@ -376,13 +377,13 @@
                 {new Date(item.createdAt).toLocaleDateString('es-ES')}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button 
+                <button
                   on:click={() => editItem(item)}
                   class="text-blue-600 hover:text-blue-900 mr-3"
                 >
                   Editar
                 </button>
-                <button 
+                <button
                   on:click={() => deleteItem(item.id)}
                   class="text-red-600 hover:text-red-900"
                 >
@@ -404,13 +405,13 @@
               {item.name}
             </h3>
             <div class="flex gap-2">
-              <button 
+              <button
                 on:click={() => editItem(item)}
                 class="text-blue-600 hover:text-blue-900 text-sm font-medium"
               >
                 Editar
               </button>
-              <button 
+              <button
                 on:click={() => deleteItem(item.id)}
                 class="text-red-600 hover:text-red-900 text-sm font-medium"
               >
@@ -418,7 +419,7 @@
               </button>
             </div>
           </div>
-          
+
           <div class="space-y-2 text-sm">
             <div class="flex items-start">
               <span class="text-gray-500 w-24 flex-shrink-0">Cantidad:</span>
@@ -429,14 +430,14 @@
               <span class="text-gray-500 w-24 flex-shrink-0">Umbral:</span>
               <span class="text-gray-900">≤ {item.lowStockThreshold || 5}</span>
             </div>
-            
+
             <div class="flex items-start">
               <span class="text-gray-500 w-24 flex-shrink-0">Estado:</span>
               <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {getQuantityBadge(item)}">
                 {getQuantityStatus(item)}
               </span>
             </div>
-            
+
             <div class="flex items-start">
               <span class="text-gray-500 w-24 flex-shrink-0">Agregado:</span>
               <span class="text-gray-900">{new Date(item.createdAt).toLocaleDateString('es-ES')}</span>
@@ -450,7 +451,7 @@
     {#if paginatedInventory.length === 0 && filteredInventory.length === 0 && searchTerm}
       <div class="bg-white border border-gray-200 rounded-lg p-12 text-center">
         <p class="text-gray-500">No se encontraron artículos que coincidan con "{searchTerm}"</p>
-        <button 
+        <button
           on:click={() => { searchTerm = ''; currentPage = 1; }}
           class="mt-2 text-blue-600 hover:text-blue-800 text-sm"
         >
@@ -469,7 +470,7 @@
 
           <div class="flex items-center gap-2">
             <!-- Previous button -->
-            <button 
+            <button
               on:click={() => changePage(currentPage - 1)}
               disabled={currentPage === 1}
               class="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -482,7 +483,7 @@
               const start = Math.max(1, currentPage - 2);
               return start + i;
             }).filter(p => p <= totalPages) as page}
-              <button 
+              <button
                 on:click={() => changePage(page)}
                 class="px-3 py-1 text-sm border border-gray-300 rounded {page === currentPage ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'}"
               >
@@ -491,7 +492,7 @@
             {/each}
 
             <!-- Next button -->
-            <button 
+            <button
               on:click={() => changePage(currentPage + 1)}
               disabled={currentPage === totalPages}
               class="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -506,7 +507,7 @@
     <!-- Empty state -->
     <div class="bg-white border border-gray-200 rounded-lg p-12 text-center">
       <p class="text-gray-500 mb-4">No hay artículos en el inventario todavía.</p>
-      <button 
+      <button
         on:click={() => showForm = true}
         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
       >
@@ -518,7 +519,7 @@
 
 <!-- Form Modal -->
 {#if showForm}
-  <div 
+  <div
     class="fixed inset-0 flex items-center justify-center p-4 z-50"
     style="background-color: rgba(0, 0, 0, 0.3);"
     on:click={handleModalClick}
@@ -529,7 +530,7 @@
         <h2 class="text-xl font-semibold text-gray-900">
           {editingItem ? 'Editar Artículo' : 'Agregar Nuevo Artículo'}
         </h2>
-        <button 
+        <button
           on:click={resetForm}
           class="text-gray-400 hover:text-gray-600 transition-colors"
         >
@@ -556,7 +557,7 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            
+
             <div>
               <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">
                 Cantidad Actual *
@@ -572,38 +573,16 @@
               />
             </div>
 
-            <div>
-              <label for="threshold" class="block text-sm font-medium text-gray-700 mb-1">
-                Umbral de Stock Bajo *
-              </label>
-              <input
-                id="threshold"
-                type="number"
-                placeholder="5"
-                min="0"
-                bind:value={form.lowStockThreshold}
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <p class="mt-1 text-xs text-gray-500">
-                Cuando la cantidad sea igual o menor a este número, el artículo se marcará como "Stock Bajo"
-              </p>
-              <div class="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
-                <strong>Ejemplos:</strong> Palas (2), Semillas (50), Bolsas de tierra (10)
-              </div>
-            </div>
-          </div>
-          
           <!-- Modal Footer -->
           <div class="flex justify-end gap-3">
-            <button 
-              type="button" 
+            <button
+              type="button"
               on:click={resetForm}
               class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
             >
               Cancelar
             </button>
-            <button 
+            <button
               type="submit"
               disabled={submitting || !form.name.trim()}
               class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
